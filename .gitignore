@@ -1,0 +1,28 @@
+# Ignore specific large files
+llama-2-7b-chat.Q4_0.gguf
+_pywrap_tensorflow_internal.pyd
+dnnl.lib
+torch_cpu.dll
+
+# Common Python ignores
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pkl
+*.so
+*.dll
+*.lib
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Virtual environment folders
+venv/
+env/
+.venv/
+.env/
+
+# OS-specific files
+.DS_Store
+Thumbs.db

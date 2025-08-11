@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Aadhaar KYC Verification</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 30px;
+      background-color: #f9f9f9;
+    }
+
+    .form-container {
+      max-width: 400px;
+      background-color: white;
+      padding: 25px;
+      margin: auto;
+      border-radius: 10px;
+      box-shadow: 0 0 10px #ccc;
+    }
+
+    input, button {
+      width: 100%;
+      margin-top: 15px;
+      padding: 10px;
+      font-size: 16px;
+    }
+
+    button {
+      background-color: #007bff;
+      color: white;
+      border: none;
+    }
+
+    #status {
+      margin-top: 20px;
+      text-align: center;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="form-container">
+    <h2>KYC Verification</h2>
+
+    <label>Aadhaar Number</label>
+    <input type="text" id="aadhaar" placeholder="Enter Aadhaar Number">
+
+    <label>User ID (MongoDB)</label>
+    <input type="text" id="user_id" placeholder="Enter User ID">
+
+    <button onclick="sendOTP()">Send OTP</button>
+
+    <div id="otp-section" style="display:none;">
+      <label>Enter OTP</label>
+      <input type="text" id="otp" placeholder="Enter OTP">
+
+      <label>Client TXN ID</label>
+      <input type="text" id="client_txn_id" placeholder="Paste client_txn_id from response">
+
+      <button onclick="verifyOTP()">Verify OTP</button>
+    </div>
+
+    <div id="status"></div>
+  </div>
+
+  <script>
+    async function sendOTP() {
+      const aadhaar = document.getElementById('aadhaar').value;
+      const user_id = document.getElementById('user_id').value;
+
+      const res = await fetch("http://localhost:8000/aadhaar/send-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ aadhaar_number: aadhaar, user_id: user_id })
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        document.getElementById('otp-section').style.display = 'block';
+        document.getElementById('status').innerHTML =
+          `✅ OTP sent successfully.<br><strong>Client TXN ID:</strong> ${data.client_txn_id}`;
+      } else {
+        document.getElementById('status').innerHTML = `❌ Error: ${data.detail || "Failed to send OTP"}`;
+      }
+    }
+
+    async function verifyOTP() {
+      const aadhaar = document.getElementById('aadhaar').value;
+      const user_id = document.getElementById('user_id').value;
+      const otp = document.getElementById('otp').value;
+      const client_txn_id = document.getElementById('client_txn_id').value;
+
+      const res = await fetch("http://localhost:8000/aadhaar/verify-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          aadhaar_number: aadhaar,
+          otp: otp,
+          client_txn_id: client_txn_id,
+          user_id: user_id
+        })
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        document.getElementById('status').innerHTML = `🎉 KYC Status: ✅ VERIFIED`;
+      } else {
+        document.getElementById('status').innerHTML = `❌ KYC Failed: ${data.detail || "Error verifying OTP"}`;
+      }
+    }
+  </script>
+
+</body>
+</html>
