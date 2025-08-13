@@ -1,71 +1,35 @@
-from fastapi import FastAPI, HTTPException, Depends
-from db import users_collection
-from models import UserSignup, UserLogin, TokenResponse,QueryRequest
-from auth.auth_handler import hash_password, verify_password, create_access_token
-from auth.auth_bearer import JWTBearer
-from bson.objectid import ObjectId
-from typing import Union
-from behavior_model import get_behavioral_score
-from models import BehaviorInput,TextPayload
-from fastapi import FastAPI, Query
-from model import fetch_data, preprocess, load_lstm_model, predict_next
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi import APIRouter, HTTPException
-from ai_models.finbert_model import get_finbert_sentiment
-from chatbot.bot import get_response
+from fastapi import FastAPI
+from fastapi.responses import HTMLResponse
+import pandas as pd
+
 app = FastAPI()
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"]
-)
-@app.post("/signup", response_model=TokenResponse)
-async def signup(user: UserSignup):
-    # Check if email or phone already exists
-    existing_user = await users_collection.find_one({
-        "$or": [{"email": user.email}, {"phone": user.phone}]
-    })
-    if existing_user:
-        raise HTTPException(status_code=400, detail="User already exists")
+@app.get("/news", response_class=HTMLResponse)
+def get_news():
+    # Import the scraping script as a module
+    import Financial_News_Scraping_Sentiment_NER as scraper
 
-    user_dict = user.dict()
-    user_dict["password"] = hash_password(user.password)
+    # Run the scraping logic
+    # The script seems to store the final DataFrame in a variable, but since the code is not fully shown,
+    # let's assume the final DataFrame is called 'df' at the end of the script.
+    # If not, you may need to adjust this variable name.
+    # We'll simulate running the script by calling its main logic if it exists.
+    # If the script only runs on import, this will suffice.
 
-    res = await users_collection.insert_one(user_dict)
-    token = create_access_token({"user_id": str(res.inserted_id)})
-    return {"access_token": token}
+    # If the script defines a function to run everything, call it here.
+    # Otherwise, if it just runs on import, the DataFrame should be available.
 
-@app.post("/login", response_model=TokenResponse)
-async def login(user: UserLogin):
-    query = {"$or": [{"email": user.email_or_phone}, {"phone": user.email_or_phone}]}
-    db_user = await users_collection.find_one(query)
+    # Try to get the DataFrame. If not present, return an error.
+    df = None
+    if hasattr(scraper, 'df'):
+        df = scraper.df
+    elif hasattr(scraper, 'all_articles_data'):
+        # Try to convert the list of dicts to DataFrame
+        df = pd.DataFrame(scraper.all_articles_data)
+        df.drop(columns = ['url', 'positive_score', 'negative_score', 'neutral_score'], inplace = True)
+    else:
+        return HTMLResponse(content="<h2>No DataFrame found in the scraper module.</h2>", status_code=500)
 
-    if not db_user or not verify_password(user.password, db_user["password"]):
-        raise HTTPException(status_code=401, detail="Invalid credentials")
-
-    token = create_access_token({"user_id": str(db_user["_id"])})
-    return {"access_token": token}
-
-@app.get("/protected", dependencies=[Depends(JWTBearer())])
-async def protected():
-    return {"message": "Access granted to protected route"}
-
-@app.post("/analyze-behavior", dependencies=[Depends(JWTBearer())])
-async def analyze_behavior(data: BehaviorInput):
-    score = get_behavioral_score(**data.dict())
-    return {"behavioral_risk_score": score}
-model = load_lstm_model()
-
-
-#chatbots
-chat_history = []
-
-
-@app.post("/chatbot")
-def chat_with_bot(req: QueryRequest):
-    global chat_history
-    answer = get_response(req.question, chat_history)
-    chat_history.append((req.question, answer))
-    return {"answer": answer}
+    # Convert DataFrame to HTML
+    html = df.to_html(index=False, escape=False)
+    return HTMLResponse(content=html, status_code=200)
